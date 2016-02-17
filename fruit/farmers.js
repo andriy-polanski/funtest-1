@@ -74,9 +74,8 @@ exports.calculateTotalFarmerFruitCost = function() {
 	});
   	return Promise.all(promises);
   }).then(function(costs) {
-  	var totalCost = _.reduce(costs, function(sum, cost) {
-  		return sum + cost;
-  	}, 0);
-  	return Promise.resolve(totalCost);
+  	return Promise.resolve(
+  		_.sum(costs)
+  	);
   });
 }
