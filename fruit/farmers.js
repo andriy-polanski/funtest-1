@@ -25,8 +25,20 @@ var getCostOfSingleFruit = lib.getCostOfSingleFruit
 // Calculate the number of units of fruits owned by all farmers (whether
 // retired or not) using getFarmers and getCropsProducedByFarmer.
 exports.countNumberOfFruits = function() {
-  // TODO: replace this with your code
-  return Promise.resolve(0)
+  return Promise.all(getFarmers()).then(function(farmers) {
+  	var promises = _.map(farmers, function(farmer) {
+  		return getCropsProducedByFarmer(farmer.name);
+  	});
+  	return Promise.all(promises);
+  }).then(function(crops) {
+  	// crops will be Array< Array<Crop> >
+  	return Promise.resolve(
+  		_.chain(crops)
+  		.flatten()
+  		.sumBy('units')
+  		.value()
+  	);
+  });
 }
 
 // Calculate the cost of all non-retired farmers' fruits using the functions
@@ -35,6 +47,36 @@ exports.countNumberOfFruits = function() {
 // of their fruits, which is the cost of a single fruit times the number of units
 // they have produced.
 exports.calculateTotalFarmerFruitCost = function() {
-  // TODO: replace this with your code
-  return Promise.resolve(0)
+  return Promise.all(getFarmers()).then(function(farmers) {
+  	// filter out retired farmers
+  	var unretiredFarmers = _.filter(farmers, function(farmer) {
+  		return !farmer.retired;
+  	});
+  	var promises = _.map(unretiredFarmers, function(farmer) {
+		return getCropsProducedByFarmer(farmer.name);
+  	});
+  	return Promise.all(promises);
+  }).then(function(allCrops) {
+  	// Last thing we want to do is calling getCostOfSingleFruit multiple times 
+  	// with same fruit type, so we transform it into Map<fruitType, unitsTotal>
+  	// where unitsTotal is the sum of all units for the fruitType.
+  	var crops = _.reduce(_.flatten(allCrops), function(result, crop) {
+  		result[crop.type] || (result[crop.type] = 0);
+  		result[crop.type] += crop.units;
+		return result;
+	}, {});
+	var promises = _.map(crops, function(units, type) {
+		// Return a promise that will be resolved with 
+		// the total cost for the specific fruit type.
+		return getCostOfSingleFruit(type).then(function(unitCost) {
+			return Promise.resolve(unitCost * units);
+		});
+	});
+  	return Promise.all(promises);
+  }).then(function(costs) {
+  	var totalCost = _.reduce(costs, function(sum, cost) {
+  		return sum + cost;
+  	}, 0);
+  	return Promise.resolve(totalCost);
+  });
 }
